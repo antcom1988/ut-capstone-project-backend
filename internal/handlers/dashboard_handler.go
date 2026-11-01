@@ -6,6 +6,7 @@ import (
 	"sikapj-backend/internal/models"
 	"sikapj-backend/internal/services"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/jmoiron/sqlx"
@@ -69,6 +70,13 @@ func (h *DashboardAlertHandler) GetAlertList(c *fiber.Ctx) error {
 	if err != nil {
 		return internalError(c)
 	}
+	filterMonths := 0
+	if raw := c.Query("months"); raw != "" {
+		filterMonths, err = strconv.Atoi(raw)
+		if err != nil || filterMonths < -1 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "message": "Parameter months harus -1 atau angka 0 ke atas"})
+		}
+	}
 	allPegawai := []models.Pegawai{}
 	if err := h.DB.Select(&allPegawai, "SELECT * FROM sikapj.pegawai WHERE is_active = TRUE ORDER BY nama_lengkap ASC"); err != nil {
 		return internalError(c)
@@ -77,7 +85,8 @@ func (h *DashboardAlertHandler) GetAlertList(c *fiber.Ctx) error {
 	for _, p := range allPegawai {
 		alerts = append(alerts, services.BuildPegawaiAlertItems(&p, thresholdMonths)...)
 	}
-	return c.JSON(fiber.Map{"success": true, "threshold_months": thresholdMonths, "data": alerts})
+	alerts = services.FilterAlertItemsByMonths(alerts, filterMonths, time.Now())
+	return c.JSON(fiber.Map{"success": true, "threshold_months": thresholdMonths, "filter_months": filterMonths, "data": alerts})
 }
 
 // UpdateAlertThreshold mengubah parameter N bulan.

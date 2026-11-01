@@ -60,6 +60,28 @@ func addCalendar(t time.Time, years, months int) time.Time {
 	return time.Date(targetFirst.Year(), targetFirst.Month(), day, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
 }
 
+func FilterAlertItemsByMonths(alerts []models.AlertItem, months int, now time.Time) []models.AlertItem {
+	if months == 0 {
+		return alerts
+	}
+	today := dateOnly(now)
+	filtered := make([]models.AlertItem, 0, len(alerts))
+	for _, alert := range alerts {
+		dueDate := dateOnly(alert.TanggalJatuhTempo)
+		if months == -1 {
+			if dueDate.Before(today) {
+				filtered = append(filtered, alert)
+			}
+			continue
+		}
+		limit := addCalendar(today, 0, months)
+		if !dueDate.Before(today) && !dueDate.After(limit) {
+			filtered = append(filtered, alert)
+		}
+	}
+	return filtered
+}
+
 // BuildPegawaiAlertItems membuat daftar AlertItem untuk satu pegawai
 func BuildPegawaiAlertItems(p *models.Pegawai, thresholdMonths int) []models.AlertItem {
 	var alerts []models.AlertItem
